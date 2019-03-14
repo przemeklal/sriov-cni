@@ -78,7 +78,9 @@ func saveScratchNetConf(containerID, dataDir string, netconf []byte) error {
 
 func consumeScratchNetConf(containerID, dataDir string) ([]byte, error) {
 	path := filepath.Join(dataDir, containerID)
+	pathIpam := filepath.Join(dataDir, containerID+"-ipam")
 	defer os.Remove(path)
+	defer os.Remove(pathIpam)
 
 	data, err := ioutil.ReadFile(path)
 	if err != nil {

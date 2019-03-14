@@ -1,9 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/containernetworking/cni/pkg/ipam"
 	"github.com/containernetworking/cni/pkg/ns"
@@ -63,30 +68,61 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return fmt.Errorf("VF information are not available to invoke setupVF()")
 	}
 
-	// skip the IPAM allocation for the DPDK and L2 mode
+	// skip the IPAM allocation for L2 mode
 	var result *types.Result
-	if n.DPDKMode || n.L2Mode {
+	if n.L2Mode {
+		return result.Print()
+	}
+
+	// experimental: run IPAM allocation for DPDK mode
+	if n.DPDKMode && n.IPAM.Type != "" {
+		result, err = ipam.ExecAdd(n.IPAM.Type, args.StdinData)
+		if err != nil {
+			return fmt.Errorf("failed to set up IPAM plugin type %q from the device %q: %v", n.IPAM.Type, n.Master, err)
+		}
+		result, err = ipam.ExecAdd(n.IPAM.Type, args.StdinData)
+		if err != nil {
+			return fmt.Errorf("failed to set up IPAM plugin type %q from the device %q: %v", n.IPAM.Type, n.Master, err)
+		}
+		result.DNS = n.DNS
+
+		// WIP save to file
+
+		ipamResult, _ := json.Marshal(result)
+		s := []string{args.ContainerID, n.DPDKConf.Ifname, "ipam"}
+		filename := strings.Join(s, "-")
+		if err := os.MkdirAll(n.CNIDir, 0700); err != nil {
+			return fmt.Errorf("failed to create the sriov data directory(%q): %v", n.CNIDir, err)
+		}
+		path := filepath.Join(n.CNIDir, filename)
+
+		err := ioutil.WriteFile(path, ipamResult, 0600)
+		if err != nil {
+			return fmt.Errorf("failed to write container data in the path(%q): %v", path, err)
+		}
 		return result.Print()
 	}
 
 	// run the IPAM plugin and get back the config to apply
-	result, err = ipam.ExecAdd(n.IPAM.Type, args.StdinData)
-	if err != nil {
-		return fmt.Errorf("failed to set up IPAM plugin type %q from the device %q: %v", n.IPAM.Type, n.Master, err)
+	if !n.DPDKMode {
+		result, err = ipam.ExecAdd(n.IPAM.Type, args.StdinData)
+		if err != nil {
+			return fmt.Errorf("failed to set up IPAM plugin type %q from the device %q: %v", n.IPAM.Type, n.Master, err)
+		}
+
+		if result.IP4 == nil {
+			return errors.New("IPAM plugin returned missing IPv4 config")
+		}
+
+		err = netns.Do(func(_ ns.NetNS) error {
+			return ipam.ConfigureIface(args.IfName, result)
+		})
+		if err != nil {
+			return err
+		}
+		result.DNS = n.DNS
 	}
 
-	if result.IP4 == nil {
-		return errors.New("IPAM plugin returned missing IPv4 config")
-	}
-
-	err = netns.Do(func(_ ns.NetNS) error {
-		return ipam.ConfigureIface(args.IfName, result)
-	})
-	if err != nil {
-		return err
-	}
-
-	result.DNS = n.DNS
 	return result.Print()
 }
 
@@ -100,8 +136,9 @@ func cmdDel(args *skel.CmdArgs) error {
 		args.IfName = n.IF0NAME
 	}
 
-	// skip the IPAM release for the DPDK and L2 mode
-	if !n.DPDKMode && !n.L2Mode && n.IPAM.Type != "" {
+	// skip the IPAM release for L2 mode
+	// TODO: what about DPDKMode?
+	if !n.L2Mode && n.IPAM.Type != "" {
 		err = ipam.ExecDel(n.IPAM.Type, args.StdinData)
 		if err != nil {
 			return err

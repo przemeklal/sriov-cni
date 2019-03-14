@@ -110,6 +110,8 @@ func AssignFreeVF(conf *sriovtypes.NetConf) error {
 	var pciAddr string
 	pfName := conf.Master
 
+	nLink = &MyNetlink{}
+
 	_, err := nLink.LinkByName(pfName)
 	if err != nil {
 		return fmt.Errorf("failed to lookup master %q: %v", conf.Master, err)
