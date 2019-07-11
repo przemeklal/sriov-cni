@@ -36,7 +36,7 @@ func (n *MyNetlink) LinkByName(name string) (netlink.Link, error) {
 
 // LinkSetVfVlan using NetlinkManager
 func (n *MyNetlink) LinkSetVfVlan(link netlink.Link, vf, vlan int) error {
-	return netlink.LinkSetVfVlan(link, vf, vlan)
+	return netlink.LinkSetVfVlanQos(link, vf, vlan, 7) //FIXME
 }
 
 // LinkSetUp using NetlinkManager
@@ -58,6 +58,10 @@ func (n *MyNetlink) LinkSetNsFd(link netlink.Link, fd int) error {
 func (n *MyNetlink) LinkSetName(link netlink.Link, name string) error {
 	return netlink.LinkSetName(link, name)
 }
+
+//func (n *MyNetlink) LinkSetVFVlanQos(link netlink.Link, qos int) error {
+//	return fmt.Errorf("not implemented")
+//}
 
 type pciUtils interface {
 	getSriovNumVfs(ifName string) (int, error)

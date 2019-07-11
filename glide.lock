@@ -1,5 +1,5 @@
-hash: 25e9271fca0de47d3e14bae4c999cc53ea4787f50817c941cc3a6cf835045ba6
-updated: 2019-03-13T16:15:00.478512528Z
+hash: 62e145f1fe1be0a684525699f595ef06b19c98fb80a3e88b6024a0c6ec5412ea
+updated: 2019-07-08T14:41:53.433164223+01:00
 imports:
 - name: github.com/containernetworking/cni
   version: a2da8f8d7fd8e6dc25f336408a8ac86f050fbd88
@@ -60,7 +60,8 @@ imports:
   - assert
   - mock
 - name: github.com/vishvananda/netlink
-  version: 6e453822d85ef5721799774b654d4d02fed62afb
+  version: cfbc5d1d68292812e89cbea90e6a3514359d26ee
+  repo: https://github.com/przemeklal/netlink.git
   subpackages:
   - nl
 - name: github.com/vishvananda/netns
